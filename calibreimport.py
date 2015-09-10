@@ -13,9 +13,9 @@ MIMETYPES = {
     'application/epub+zip': '.epub'
 }
 
-def import_ebook(filename):
+def import_ebook(filename, include_rating=False):
     isbn = extract_isbn(filename)
-    opf, cover = fetch_metadata(filename, isbn)
+    opf, cover = fetch_metadata(filename, isbn, include_rating)
     calibre_id = add_to_library(filename, cover)
     apply_metadata(calibre_id, opf)
     return calibre_id
@@ -55,14 +55,19 @@ def extract_isbn(filename):
 
     return None
 
-def fetch_metadata(filename, isbn):
+def fetch_metadata(filename, isbn, include_rating=False):
     opf = tempfile(".opf")
     cover = tempfile(".jpg")
     opf_text = subprocess.check_output(
         ['fetch-ebook-metadata', '-i', isbn, '-o', opf, '-c', cover]
     ).decode(ENCODING)
+
     with open(opf, 'w') as f:
-        f.write(opf_text)
+        if include_rating:
+            f.write(opf_text)
+        else:
+            lines = opf_text.splitlines()
+            f.writelines(line for line in lines if "calibre:rating" not in line)
     return opf, cover
 
 def add_to_library(filename, cover):
@@ -80,10 +85,13 @@ def apply_metadata(calibre_id, opf):
 def main():
     parser = argparse.ArgumentParser(prog="calibre-import", description="Fetch metadata and import ebooks to calibre")
     parser.add_argument('filename', nargs='+', help='ebook file to import')
+    parser.add_argument('--ratings', dest='include_rating', action='store_true', help='include book rating in metadata')
+    parser.add_argument('--no-ratings', dest='include_rating', action='store_false', help='don\'t include book rating in metadata')
+    parser.set_defaults(include_rating=False)
     args = parser.parse_args()
 
     for filename in args.filename:
-        calibre_id = import_ebook(filename)
+        calibre_id = import_ebook(filename, args.include_rating)
         print("added", calibre_id, filename)
 
 if __name__ == "__main__": main()
