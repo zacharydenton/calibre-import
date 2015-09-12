@@ -31,7 +31,7 @@ def determine_format(filename):
     mimetype = subprocess.check_output(['file', '-b', '-i', filename]).split(';')[0]
     try:
         return MIMETYPES[mimetype]
-    except Exception as e:
+    except KeyError:
         return None
 
 def extract_isbn(filename):
@@ -74,7 +74,7 @@ def add_to_library(filename, cover):
     output = subprocess.check_output(
         ['calibredb', 'add', filename, '-c', cover]
     ).decode(ENCODING)
-    calibre_id = re.search('\d+', output).group(0)
+    calibre_id = re.search('Added book ids: (\d+)', output).group(1)
     return calibre_id
 
 def apply_metadata(calibre_id, opf):
@@ -94,4 +94,5 @@ def main():
         calibre_id = import_ebook(filename, args.include_rating)
         print("added", calibre_id, filename)
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
