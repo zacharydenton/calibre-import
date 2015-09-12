@@ -13,8 +13,11 @@ MIMETYPES = {
     'application/epub+zip': '.epub'
 }
 
-def import_ebook(filename, include_rating=False):
-    isbn = extract_isbn(filename)
+class IsbnNotFoundError(Exception): pass
+
+def import_ebook(filename, isbn=None, include_rating=False):
+    if not isbn:
+        isbn = extract_isbn(filename)
     opf, cover = fetch_metadata(filename, isbn, include_rating)
     calibre_id = add_to_library(filename, cover)
     apply_metadata(calibre_id, opf)
@@ -53,7 +56,7 @@ def extract_isbn(filename):
         if match:
             return match.group()
 
-    return None
+    raise IsbnNotFoundError("ISBN not found in {}".format(filename))
 
 def fetch_metadata(filename, isbn, include_rating=False):
     opf = tempfile(".opf")
@@ -87,11 +90,12 @@ def main():
     parser.add_argument('filename', nargs='+', help='ebook file to import')
     parser.add_argument('--ratings', dest='include_rating', action='store_true', help='include book rating in metadata')
     parser.add_argument('--no-ratings', dest='include_rating', action='store_false', help='don\'t include book rating in metadata')
+    parser.add_argument('-i', '--isbn', dest='isbn', help='manually specify the isbn')
     parser.set_defaults(include_rating=False)
     args = parser.parse_args()
 
     for filename in args.filename:
-        calibre_id = import_ebook(filename, args.include_rating)
+        calibre_id = import_ebook(filename, isbn=args.isbn, include_rating=args.include_rating)
         print("added", calibre_id, filename)
 
 if __name__ == "__main__":
